@@ -45,7 +45,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     mapping(uint256 nonce => mapping(address user => bool used)) internal _nonceUsed;
 
     /// @notice Mapping of valid signers.
-    mapping(address account => bool isValidSigner) public signers;
+    mapping(address account => bool isValidSigner) public _signers;
 
     /// @notice Emitted after validating a withdraw request and funds are about to be withdrawn.
     ///
@@ -333,7 +333,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
         address recoveredSigner = ECDSA.recover(hash, withdrawRequest.signature);
 
         // Check if the signature is valid and the recovered signer is authorized
-        return signers[recoveredSigner];
+        return _signers[recoveredSigner];
     }
 
     /// @notice Returns the hash to be signed for a given `account` and `withdrawRequest` pair.
@@ -379,7 +379,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     /// @param signer The signer to set the status for.
     /// @param isValid The status to set for the signer.
     function _setSigner(address signer, bool isValid) internal {
-        signers[signer] = isValid;
+        _signers[signer] = isValid;
 
         emit SignerSet(signer, isValid);
     }
