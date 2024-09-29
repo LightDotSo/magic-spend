@@ -149,7 +149,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
         onlyEntryPoint
         returns (bytes memory context, uint256 validationData)
     {
-        WithdrawRequest memory withdrawRequest = abi.decode(userOp.paymasterAndData[20:], (WithdrawRequest));
+        WithdrawRequest memory withdrawRequest = abi.decode(userOp.paymasterAndData[52:], (WithdrawRequest));
         uint256 withdrawAmount = withdrawRequest.amount;
 
         if (withdrawAmount < maxCost) {
