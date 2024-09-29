@@ -167,12 +167,10 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     }
 
     /// @inheritdoc IPaymaster
-    function postOp(
-        IPaymaster.PostOpMode mode,
-        bytes calldata context,
-        uint256 actualGasCost,
-        uint256 actualUserOpFeePerGas
-    ) external onlyEntryPoint {
+    function postOp(IPaymaster.PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256)
+        external
+        onlyEntryPoint
+    {
         // `PostOpMode.postOpReverted` should never happen.
         // The flow here can only revert if there are > maxWithdrawDenominator
         // withdraws in the same transaction, which should be highly unlikely.
