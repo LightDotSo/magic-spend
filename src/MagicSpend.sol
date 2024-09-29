@@ -104,23 +104,27 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     ///      the user account refused the funds or ran out of gas on receive).
     error UnexpectedPostOpRevertedMode();
 
-    /// @notice Emitted when a signer is added.
-    event SignerAdded(address signer);
-
-    /// @notice Emitted when a signer is removed.
-    event SignerRemoved(address signer);
+    /// @notice Emitted when a signer is set.
+    ///
+    /// @param signer The signer address.
+    /// @param isValid The signer status.
+    event SignerSet(address indexed signer, bool isValid);
 
     /// @dev The caller is not authorized to call the function.
     error Unauthorized();
 
+    /// @dev The immutable EntryPoint contract address
+    address private immutable _entryPoint;
+
     /// @dev Requires that the caller is the EntryPoint.
     modifier onlyEntryPoint() virtual {
-        if (msg.sender != entryPoint()) revert Unauthorized();
+        if (msg.sender != _entryPoint) revert Unauthorized();
         _;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address entryPointAddress) {
+        _entryPoint = entryPointAddress;
         _disableInitializers();
     }
 
@@ -136,7 +140,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
         __UUPSUpgradeable_init();
         __Ownable_init_unchained(owner_);
         _setMaxWithdrawDenominator(maxWithdrawDenominator_);
-        addSigner(signer_);
+        _setSigner(signer_, true);
     }
 
     /// @inheritdoc IPaymaster
@@ -296,16 +300,14 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     ///
     /// @param signer_ The signer to remove.
     function removeSigner(address signer_) public onlyOwner {
-        signers[signer_] = false;
-        emit SignerRemoved(signer_);
+        _setSigner(signer_, false);
     }
 
     /// @notice Adds a signer.
     ///
     /// @param signer_ The signer to add.
     function addSigner(address signer_) public onlyOwner {
-        signers[signer_] = true;
-        emit SignerAdded(signer_);
+        _setSigner(signer_, true);
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -367,11 +369,26 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
         return _nonceUsed[nonce][account];
     }
 
-    /// @notice Returns the canonical ERC-4337 EntryPoint v0.7 contract.
-    function entryPoint() public pure returns (address) {
-        return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    /// @notice Returns the ERC-4337 EntryPoint contract.
+    function entryPoint() public view returns (address) {
+        return _entryPoint;
     }
 
+    /// @notice Sets the signer status for the given `signer`.
+    ///
+    /// @param signer The signer to set the status for.
+    /// @param isValid The status to set for the signer.
+    function _setSigner(address signer, bool isValid) internal {
+        signers[signer] = isValid;
+
+        emit SignerSet(signer, isValid);
+    }
+
+    /// @notice Sets the maxWithdrawDenominator.
+    ///
+    /// @dev Reverts if not called by the owner of the contract.
+    ///
+    /// @param newDenominator The new value for maxWithdrawDenominator.
     function _setMaxWithdrawDenominator(uint256 newDenominator) internal {
         maxWithdrawDenominator = newDenominator;
 
