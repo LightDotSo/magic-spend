@@ -45,7 +45,7 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     mapping(uint256 nonce => mapping(address user => bool used)) internal _nonceUsed;
 
     /// @notice Mapping of valid signers.
-    mapping(address account => bool isValidSigner) public _signers;
+    mapping(address account => bool isValidSigner) internal _signers;
 
     /// @notice Emitted after validating a withdraw request and funds are about to be withdrawn.
     ///
@@ -372,6 +372,15 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     /// @notice Returns the ERC-4337 EntryPoint contract.
     function entryPoint() public view returns (address) {
         return _entryPoint;
+    }
+
+    /// @notice Returns the signer status for the given `signer`.
+    ///
+    /// @param signer The signer to check the status for.
+    ///
+    /// @return `true` if the signer is valid, else `false`.
+    function isSigner(address signer) external view returns (bool) {
+        return _signers[signer];
     }
 
     /// @notice Sets the signer status for the given `signer`.
