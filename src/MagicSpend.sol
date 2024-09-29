@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Ownable} from "solady/src/auth/Ownable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {ECDSA} from "solady/src/utils/ECDSA.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
@@ -15,7 +17,7 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 /// @notice ERC4337 Paymaster implementation compatible with Entrypoint v0.6.
 ///
 /// @dev See https://eips.ethereum.org/EIPS/eip-4337#extension-paymasters.
-contract MagicSpend is Ownable, IPaymaster {
+contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     /// @notice Signed withdraw request allowing accounts to withdraw funds from this contract.
     struct WithdrawRequest {
         /// @dev The signature associated with this withdraw request.
@@ -41,6 +43,9 @@ contract MagicSpend is Ownable, IPaymaster {
 
     /// @dev Mappings keeping track of already used nonces per user to prevent replays of withdraw requests.
     mapping(uint256 nonce => mapping(address user => bool used)) internal _nonceUsed;
+
+    /// @notice Mapping of valid signers.
+    mapping(address account => bool isValidSigner) public signers;
 
     /// @notice Emitted after validating a withdraw request and funds are about to be withdrawn.
     ///
@@ -99,23 +104,40 @@ contract MagicSpend is Ownable, IPaymaster {
     ///      the user account refused the funds or ran out of gas on receive).
     error UnexpectedPostOpRevertedMode();
 
+    /// @notice Emitted when a signer is added.
+    event SignerAdded(address signer);
+
+    /// @notice Emitted when a signer is removed.
+    event SignerRemoved(address signer);
+
+    /// @dev The caller is not authorized to call the function.
+    error Unauthorized();
+
     /// @dev Requires that the caller is the EntryPoint.
     modifier onlyEntryPoint() virtual {
         if (msg.sender != entryPoint()) revert Unauthorized();
         _;
     }
 
-    /// @notice Deploy the contract and set its initial owner.
-    ///
-    /// @param owner_ The initial owner of this contract.
-    /// @param maxWithdrawDenominator_ The initial maxWithdrawDenominator.
-    constructor(address owner_, uint256 maxWithdrawDenominator_) {
-        Ownable._initializeOwner(owner_);
-        _setMaxWithdrawDenominator(maxWithdrawDenominator_);
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /// @notice Receive function allowing ETH to be deposited in this contract.
     receive() external payable {}
+
+    /// @notice Initializes the contract.
+    ///
+    /// @param owner_ The owner of the contract.
+    /// @param maxWithdrawDenominator_ The max withdraw denominator.
+    /// @param signer_ The initial signer of the contract.
+    function initialize(address owner_, uint256 maxWithdrawDenominator_, address signer_) public initializer {
+        __UUPSUpgradeable_init();
+        __Ownable_init_unchained(owner_);
+        _setMaxWithdrawDenominator(maxWithdrawDenominator_);
+        addSigner(signer_);
+    }
 
     /// @inheritdoc IPaymaster
     function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256 maxCost)
@@ -272,6 +294,25 @@ contract MagicSpend is Ownable, IPaymaster {
         _setMaxWithdrawDenominator(newDenominator);
     }
 
+    /// @notice Removes a signer.
+    ///
+    /// @param signer_ The signer to remove.
+    function removeSigner(address signer_) public onlyOwner {
+        signers[signer_] = false;
+        emit SignerRemoved(signer_);
+    }
+
+    /// @notice Adds a signer.
+    ///
+    /// @param signer_ The signer to add.
+    function addSigner(address signer_) public onlyOwner {
+        signers[signer_] = true;
+        emit SignerAdded(signer_);
+    }
+
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
     /// @notice Returns whether the `withdrawRequest` signature is valid for the given `account`.
     ///
     /// @dev Does not validate nonce or expiry.
@@ -285,9 +326,14 @@ contract MagicSpend is Ownable, IPaymaster {
         view
         returns (bool)
     {
-        return SignatureCheckerLib.isValidSignatureNow(
-            owner(), getHash(account, withdrawRequest), withdrawRequest.signature
-        );
+        // Get the hash of the withdraw request
+        bytes32 hash = getHash(account, withdrawRequest);
+
+        // Recover the signer's address from the signature
+        address recoveredSigner = ECDSA.recover(hash, withdrawRequest.signature);
+
+        // Check if the signature is valid and the recovered signer is authorized
+        return signers[recoveredSigner];
     }
 
     /// @notice Returns the hash to be signed for a given `account` and `withdrawRequest` pair.
@@ -323,9 +369,9 @@ contract MagicSpend is Ownable, IPaymaster {
         return _nonceUsed[nonce][account];
     }
 
-    /// @notice Returns the canonical ERC-4337 EntryPoint v0.6 contract.
+    /// @notice Returns the canonical ERC-4337 EntryPoint v0.7 contract.
     function entryPoint() public pure returns (address) {
-        return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+        return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
     }
 
     function _setMaxWithdrawDenominator(uint256 newDenominator) internal {
