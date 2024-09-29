@@ -134,12 +134,12 @@ contract MagicSpend is UUPSUpgradeable, Ownable2StepUpgradeable, IPaymaster {
     /// @notice Initializes the contract.
     ///
     /// @param owner The owner of the contract.
-    /// @param maxWithdrawDenominator The max withdraw denominator.
+    /// @param initialMaxWithdrawDenominator The initial max withdraw denominator.
     /// @param signer The initial signer of the contract.
-    function initialize(address owner, uint256 maxWithdrawDenominator, address signer) public initializer {
+    function initialize(address owner, uint256 initialMaxWithdrawDenominator, address signer) public initializer {
         __UUPSUpgradeable_init();
         __Ownable_init_unchained(owner);
-        _setMaxWithdrawDenominator(maxWithdrawDenominator);
+        _setMaxWithdrawDenominator(initialMaxWithdrawDenominator);
         _setSigner(signer, true);
     }
 
