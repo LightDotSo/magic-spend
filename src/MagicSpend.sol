@@ -3,9 +3,9 @@ pragma solidity ^0.8.23;
 
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {ECDSA} from "solady/src/utils/ECDSA.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
