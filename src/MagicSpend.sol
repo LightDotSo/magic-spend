@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
-import {Ownable} from "solady/src/auth/Ownable.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
-import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
+import {Ownable} from "solady/auth/Ownable.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
@@ -118,7 +118,7 @@ contract MagicSpend is Ownable, IPaymaster {
     receive() external payable {}
 
     /// @inheritdoc IPaymaster
-    function validatePaymasterUserOp(UserOperation calldata userOp, bytes32, uint256 maxCost)
+    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256 maxCost)
         external
         onlyEntryPoint
         returns (bytes memory context, uint256 validationData)
@@ -145,10 +145,12 @@ contract MagicSpend is Ownable, IPaymaster {
     }
 
     /// @inheritdoc IPaymaster
-    function postOp(IPaymaster.PostOpMode mode, bytes calldata context, uint256 actualGasCost)
-        external
-        onlyEntryPoint
-    {
+    function postOp(
+        IPaymaster.PostOpMode mode,
+        bytes calldata context,
+        uint256 actualGasCost,
+        uint256 actualUserOpFeePerGas
+    ) external onlyEntryPoint {
         // `PostOpMode.postOpReverted` should never happen.
         // The flow here can only revert if there are > maxWithdrawDenominator
         // withdraws in the same transaction, which should be highly unlikely.
